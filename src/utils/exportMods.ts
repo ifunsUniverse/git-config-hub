@@ -1,7 +1,8 @@
 import JSZip from "jszip";
 import { ElectronScannedMod } from "./electronFolderScanner";
 import { readdir, readFile } from "./electronBridge";
-import path from "path-browserify";
+
+const isElectron = () => !!(window as any).electronBridge;
 
 /**
  * Recursively adds all files from an Electron directory path to a JSZip instance
@@ -29,7 +30,7 @@ async function addDirectoryToZipElectron(
 }
 
 /**
- * Exports all scanned mods as a ZIP file using Native Electron Save Dialog
+ * Exports all scanned mods as a ZIP file
  */
 export async function exportModsAsZip(
   scannedMods: ElectronScannedMod[],
@@ -39,15 +40,26 @@ export async function exportModsAsZip(
   const zip = new JSZip();
   const baseFolder = isFourOhStyle ? "SPT/user/mods" : "user/mods";
 
-  for (const mod of scannedMods) {
-    const modFolderName = mod.mod.id;
-    const modZipPath = `${baseFolder}/${modFolderName}`;
-    await addDirectoryToZipElectron(zip, mod.folderPath, modZipPath);
+  if (isElectron()) {
+    for (const mod of scannedMods) {
+      const modFolderName = mod.mod.id;
+      const modZipPath = `${baseFolder}/${modFolderName}`;
+      await addDirectoryToZipElectron(zip, mod.folderPath, modZipPath);
+    }
+  } else {
+    // Browser mode: add config files from localStorage
+    for (const mod of scannedMods) {
+      for (const config of mod.configs) {
+        const modZipPath = `${baseFolder}/${mod.mod.id}/${config.fileName}`;
+        const content = await readFile(config.filePath);
+        zip.file(modZipPath, content);
+      }
+    }
   }
 
   const blob = await zip.generateAsync(
     {
-      type: "uint8array",
+      type: "blob",
       compression: "DEFLATE",
       compressionOptions: { level: 5 },
     },
@@ -56,17 +68,26 @@ export async function exportModsAsZip(
     }
   );
 
-  // Use native save dialog
-  const saveResult = await (window as any).electronBridge.saveFile({
-    title: 'Export Mods ZIP',
-    defaultPath: 'SPT_Mods_Backup.zip',
-    filters: [{ name: 'ZIP Files', extensions: ['zip'] }]
-  });
+  if (isElectron()) {
+    const saveResult = await (window as any).electronBridge.saveFile({
+      title: 'Export Mods ZIP',
+      defaultPath: 'SPT_Mods_Backup.zip',
+      filters: [{ name: 'ZIP Files', extensions: ['zip'] }]
+    });
 
-  if (!saveResult.canceled && saveResult.filePath) {
-    // Convert Uint8Array to Buffer-like string for the bridge
-    // Actually, Electron's fs.writeFile handles Buffers/Uint8Arrays directly if passed correctly
-    // But since our bridge expects string, we'll convert or ensure the bridge can handle binary
-    await (window as any).electronBridge.writeFile(saveResult.filePath, blob);
+    if (!saveResult.canceled && saveResult.filePath) {
+      const arrayBuffer = await blob.arrayBuffer();
+      await (window as any).electronBridge.writeFile(saveResult.filePath, new Uint8Array(arrayBuffer));
+    }
+  } else {
+    // Browser: trigger download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "SPT_Mods_Backup.zip";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }

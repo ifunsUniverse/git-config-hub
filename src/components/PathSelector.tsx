@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, Upload, Loader2, RefreshCw, Info } from "lucide-react";
+import { FolderOpen, Upload, Loader2, RefreshCw, Info, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { selectFolder } from "@/utils/electronBridge";
 import { tips } from "@/components/ui/tips";
 import {
   AlertDialog,
@@ -20,6 +20,8 @@ interface PathSelectorProps {
   onFolderSelected: (handle: string) => void;
   onLoadLastFolder: () => void;
 }
+
+const isElectron = () => !!(window as any).electronBridge;
 
 export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelectorProps) => {
   const [path, setPath] = useState("");
@@ -38,6 +40,18 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
   const handleSelectFolder = async () => {
     try {
       setIsScanning(true);
+
+      if (!isElectron()) {
+        // Browser demo mode
+        const demoPath = "/demo/SPT";
+        setPath(demoPath);
+        localStorage.setItem("lastSPTFolder", demoPath);
+        toast.success("Demo mode activated", { description: "Loading sample mods..." });
+        onFolderSelected(demoPath);
+        return;
+      }
+
+      const { selectFolder } = await import("@/utils/electronBridge");
       const result = await selectFolder();
 
       if (result.canceled || !result.path) {
@@ -48,7 +62,6 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
       setPath(result.path);
       localStorage.setItem("lastSPTFolder", result.path);
       toast.success("Folder selected", { description: "Scanning for mods..." });
-
       onFolderSelected(result.path);
     } catch (error: any) {
       console.error("Error selecting folder:", error);
@@ -83,17 +96,29 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
           </div>
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">SPT Mod Config Editor</h1>
+            {!isElectron() && (
+              <Badge variant="secondary" className="gap-1">
+                <Globe className="w-3 h-3" />
+                Web Demo
+              </Badge>
+            )}
           </div>
-          <p className="text-sm sm:text-base text-muted-foreground">Select your SPT installation directory to begin</p>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {isElectron() 
+              ? "Select your SPT installation directory to begin" 
+              : "Try the editor with sample mod configurations"}
+          </p>
 
-          <div className="mt-4 p-3 rounded-lg bg-info/10 border border-info/20 max-w-md mx-auto">
+          <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border max-w-md mx-auto">
             <p className="text-[10px] sm:text-xs text-foreground">{tip}</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Select Your SPT Folder</label>
+            <label className="text-sm font-medium text-foreground">
+              {isElectron() ? "Select Your SPT Folder" : "Launch Demo"}
+            </label>
 
             <Button
               onClick={handleSelectFolder}
@@ -103,38 +128,44 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
               {isScanning ? (
                 <>
                   <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-                  Scanning folder...
+                  {isElectron() ? "Scanning folder..." : "Loading demo..."}
                 </>
               ) : (
                 <>
                   <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
-                  Select SPT Installation Folder
+                  {isElectron() ? "Select SPT Installation Folder" : "Load Demo Mods"}
                 </>
               )}
             </Button>
 
             <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
-              Click to browse and select your SPT installation directory
+              {isElectron() 
+                ? "Click to browse and select your SPT installation directory"
+                : "Loads sample configurations for testing the editor in your browser"}
             </p>
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
-              <Button
-                onClick={() => setShowLoadConfirm(true)}
-                variant="outline"
-                className="w-full h-12 sm:h-16 text-base sm:text-lg gap-3"
-                disabled={!localStorage.getItem("lastSPTFolder")}
-              >
-                Load Last Folder
-              </Button>
+              {isElectron() && (
+                <>
+                  <Button
+                    onClick={() => setShowLoadConfirm(true)}
+                    variant="outline"
+                    className="w-full h-12 sm:h-16 text-base sm:text-lg gap-3"
+                    disabled={!localStorage.getItem("lastSPTFolder")}
+                  >
+                    Load Last Folder
+                  </Button>
 
-              <Button
-                onClick={handleCheckUpdates}
-                variant="ghost"
-                className="w-full h-10 sm:h-12 gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
-              >
-                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-                Check for Updates
-              </Button>
+                  <Button
+                    onClick={handleCheckUpdates}
+                    variant="ghost"
+                    className="w-full h-10 sm:h-12 gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
+                  >
+                    <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Check for Updates
+                  </Button>
+                </>
+              )}
 
               <AlertDialog open={showLoadConfirm} onOpenChange={setShowLoadConfirm}>
                 <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
@@ -170,9 +201,19 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
                 NEW!
               </div>
             )}
-            <p>• The app will scan for mods in: <span className="text-foreground font-mono">{path || "[path]"}/SPT/user/mods/</span> or <span className="text-foreground font-mono">{path || "[path]"}/user/mods/</span></p>
-            <p>• Only compatible JSON config files will be loaded</p>
-            <p>• You can change this path later in settings</p>
+            {isElectron() ? (
+              <>
+                <p>• The app will scan for mods in: <span className="text-foreground font-mono">{path || "[path]"}/SPT/user/mods/</span> or <span className="text-foreground font-mono">{path || "[path]"}/user/mods/</span></p>
+                <p>• Only compatible JSON config files will be loaded</p>
+                <p>• You can change this path later in settings</p>
+              </>
+            ) : (
+              <>
+                <p>• This is a <span className="text-foreground font-semibold">browser demo</span> with sample mod configs</p>
+                <p>• Changes are saved to your browser's local storage</p>
+                <p>• For full functionality, use the <span className="text-foreground">Electron desktop app</span></p>
+              </>
+            )}
           </div>
         </div>
       </Card>

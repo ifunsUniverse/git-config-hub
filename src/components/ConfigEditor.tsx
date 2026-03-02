@@ -86,7 +86,8 @@ export const ConfigEditor = ({
       
       try {
         setLoading(true);
-        const content = await window.electronBridge.readFile(configPath);
+        const { readFile } = await import("@/utils/electronBridge");
+        const content = await readFile(configPath);
         if (isMounted) {
           setRawText(content);
           setHasChanges(false);
@@ -177,7 +178,8 @@ export const ConfigEditor = ({
   const handleReset = async () => {
     if (!configPath) return;
     try {
-      const content = await window.electronBridge.readFile(configPath);
+      const { readFile } = await import("@/utils/electronBridge");
+      const content = await readFile(configPath);
       setRawText(content);
       setHasChanges(false);
       setJsonError(null);
