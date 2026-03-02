@@ -1,73 +1,117 @@
-# Welcome to your Lovable project
+# SPT Mod Config Editor - Desktop Application
 
-## Project info
+**A powerful Electron desktop application for managing your SPT mod configurations.**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Overview
 
-## How can I edit this code?
+The SPT Mod Config Editor is a sleek, modern **desktop-only** application built with Electron that puts all your SPT mod configurations in one beautiful interface. No more juggling multiple JSON files and text editors!
 
-There are several ways of editing your application.
+## Key Features
 
-**Use Lovable**
+- **One-Click Scanning** - Point to your SPT folder and instantly see all your installed mods with their config files
+- **Smart Editor** - Real-time JSON/JSON5 validation with Monaco editor ensures you never save a broken config
+- **Safe & Reliable** - Auto-formatting and validation before saving prevents configuration errors
+- **Powerful Search** - Quickly find any mod with instant search and filtering
+- **Favorites System** - Pin your frequently edited mods for quick access
+- **Category Management** - Organize your mods into custom categories for better workflow
+- **Configuration History** - Every save creates a backup. View and restore previous versions (keeps up to 10 versions per config for 30 days)
+- **Bulk Export** - Export all your configurations at once for easy backup or sharing
+- **Edit Tracking** - Visual indicators show which mods have been edited and when
+- **Recently Edited Tab** - Quick access to your most recently modified mods
+- **Modern UI** - Clean, intuitive interface with dark/light theme support
+- **Keyboard Shortcuts** - Ctrl+S (Cmd+S on Mac) to save, Ctrl+F (Cmd+F on Mac) to search
+- **Lightning Fast** - Built with modern technologies for instant responsiveness
+- **Native File System Access** - Full desktop integration for seamless file management
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+### Download Pre-built Binaries
 
-**Use your preferred IDE**
+Download the latest version for your platform from the releases page:
+- **Windows**: `SPT-Mod-Config-Editor-Setup.exe`
+- **macOS**: `SPT-Mod-Config-Editor.dmg`
+- **Linux**: `SPT-Mod-Config-Editor.AppImage`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Building from Source
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+See [ELECTRON-README.md](ELECTRON-README.md) for detailed build instructions.
 
-Follow these steps:
+## Usage
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Launch the SPT Mod Config Editor application
+2. Click "Select SPT Installation Folder" and browse to your SPT root directory
+3. The app will automatically scan for mods in `SPT/user/mods/`
+4. Select a mod from the sidebar to view and edit its configuration files
+5. Make your changes in the Monaco editor
+6. Press Ctrl+S or click "Save" to save your changes
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## System Requirements
 
-# Step 3: Install the necessary dependencies.
-npm i
+- **Operating System**: Windows 10+, macOS 10.13+, or Linux (64-bit)
+- **Memory**: 4GB RAM minimum
+- **Disk Space**: 200MB for application
+- **Node.js**: Not required for pre-built binaries (required for development only)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Why Electron-Only?
 
-**Edit a file directly in GitHub**
+This application is built exclusively for desktop use to provide:
+- Full file system access without browser security restrictions
+- Native folder picker dialogs
+- Persistent folder access without repeated permissions
+- Better performance for large config files
+- Native integration with your operating system
+- Offline capability - no internet connection required
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Development
 
 This project is built with:
+- **Electron** - Desktop application framework
+- **React** - UI framework
+- **TypeScript** - Type-safe development
+- **Vite** - Fast build tooling
+- **Monaco Editor** - VS Code's editor
+- **Tailwind CSS** - Utility-first styling
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+For development setup and build instructions, see [ELECTRON-README.md](ELECTRON-README.md).
 
-## How can I deploy this project?
+## Features in Detail
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Configuration History & Rollback
+Every time you save a config file, a backup is automatically created. Use the "History" button in the config editor to:
+- View all previous versions (up to 10 per file)
+- See when each version was saved
+- Restore any previous version with one click
+- Backups are kept for 30 days
 
-## Can I connect a custom domain to my Lovable project?
+### Category Management
+Organize your mods into custom categories:
+- Create unlimited categories
+- Assign mods to categories for better organization
+- Filter mods by category
+- Categories are persistent across sessions
 
-Yes, you can!
+### Smart Validation
+The editor provides real-time validation:
+- JSON/JSON5 syntax checking
+- Automatic formatting on save
+- Error highlighting with line numbers
+- "Fix Common Issues" tool for quick repairs
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Perfect For
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Players who frequently tweak mod settings
+- Anyone who wants a better way to manage their SPT mods
+- Users who need to organize large mod collections
+- Anyone tired of hunting through folder structures
+
+## Support & Feedback
+
+Created by **ifunsUniverse**
+
+I will be updating things as I go and add any features the community wants! Happy editing!
+
+*This tool was built with some AI assistance but not entirely AI-generated.*
+
+## License
+
+See LICENSE file for details.
