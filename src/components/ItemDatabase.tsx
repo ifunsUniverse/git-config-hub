@@ -75,8 +75,22 @@ export const ItemDatabase = () => {
     const fetchItems = async () => {
       setIsLoading(true);
       try {
-        const result = await window.electronBridge.fetchTarkovItems();
+        let result: any;
         
+        if ((window as any).electronBridge?.fetchTarkovItems) {
+          result = await (window as any).electronBridge.fetchTarkovItems();
+        } else {
+          // Browser mode: fetch directly from Tarkov.dev GraphQL API
+          const response = await fetch("https://api.tarkov.dev/graphql", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: `{ items { id name shortName types } }`
+            })
+          });
+          result = await response.json();
+        }
+
         if (result.errors) {
           throw new Error(result.errors[0]?.message || "GraphQL Error");
         }
