@@ -20,11 +20,12 @@ import {
 interface PathSelectorProps {
   onFolderSelected: (handle: string) => void;
   onLoadLastFolder: () => void;
+  onLoadDemo?: () => void;
 }
 
 const isElectron = () => !!(window as any).electronBridge;
 
-export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelectorProps) => {
+export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }: PathSelectorProps) => {
   const [path, setPath] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [tip, setTip] = useState("");
@@ -122,13 +123,23 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
 
             {!isElectron() && !browserSupported && (
               <p className="text-[10px] sm:text-xs text-destructive text-center">
-                Your browser doesn't support the File System Access API. Please use Chrome or Edge.
+                Your browser doesn't support the File System Access API. Please use Chrome or Edge, or try the demo below.
               </p>
             )}
 
             <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
               Click to browse and select your SPT installation directory
             </p>
+
+            {!isElectron() && onLoadDemo && (
+              <Button
+                onClick={onLoadDemo}
+                variant="secondary"
+                className="w-full h-12 sm:h-16 text-base sm:text-lg gap-3 mt-2"
+              >
+                🎮 Load Demo Mods
+              </Button>
+            )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
               {isElectron() && (

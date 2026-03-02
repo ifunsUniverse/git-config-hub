@@ -9,6 +9,7 @@ import { ConfigValidationSummary } from "@/components/ConfigValidationSummary";
 import { CategoryDialog } from "@/components/CategoryDialog";
 import { scanSPTFolderElectron, ElectronScannedMod, saveConfigToFileElectron } from "@/utils/electronFolderScanner";
 import { exportModsAsZip } from "@/utils/exportMods";
+import { demoMods } from "@/utils/demoData";
 import { saveEditHistory, getEditHistory, getModEditTime } from "@/utils/editTracking";
 import { 
   loadCategories, 
@@ -444,11 +445,25 @@ const Index = () => {
     }
   }, [selectedModId]);
 
+  const handleLoadDemo = () => {
+    const mods = demoMods as ElectronScannedMod[];
+    setScannedMods(mods);
+    setSptPath("Demo");
+    setRawSptPath("/demo");
+    if (mods.length > 0) {
+      setSelectedModId(mods[0].mod.id);
+      setOpenConfigIndices([0]);
+      setActiveConfigIndex(0);
+    }
+    toast.success(`Loaded ${mods.length} demo mods`);
+  };
+
   if (!sptPath) {
     return (
       <PathSelector 
         onFolderSelected={handleFolderSelected}
         onLoadLastFolder={handleLoadLastFolder}
+        onLoadDemo={handleLoadDemo}
       />
     );
   }
