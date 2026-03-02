@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, Upload, Loader2, RefreshCw, Info, Globe } from "lucide-react";
+import { FolderOpen, Upload, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { tips } from "@/components/ui/tips";
+import { isFileSystemAccessSupported } from "@/utils/browserFs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
   const [showNewLabel, setShowNewLabel] = useState(() => {
     return localStorage.getItem("hasSeenUpdateInfo") !== "true";
   });
+  const browserSupported = !isElectron() && isFileSystemAccessSupported();
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * tips.length);
@@ -40,16 +42,6 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
   const handleSelectFolder = async () => {
     try {
       setIsScanning(true);
-
-      if (!isElectron()) {
-        // Browser demo mode
-        const demoPath = "/demo/SPT";
-        setPath(demoPath);
-        localStorage.setItem("lastSPTFolder", demoPath);
-        toast.success("Demo mode activated", { description: "Loading sample mods..." });
-        onFolderSelected(demoPath);
-        return;
-      }
 
       const { selectFolder } = await import("@/utils/electronBridge");
       const result = await selectFolder();
@@ -96,17 +88,9 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
           </div>
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">SPT Mod Config Editor</h1>
-            {!isElectron() && (
-              <Badge variant="secondary" className="gap-1">
-                <Globe className="w-3 h-3" />
-                Web Demo
-              </Badge>
-            )}
           </div>
           <p className="text-sm sm:text-base text-muted-foreground">
-            {isElectron() 
-              ? "Select your SPT installation directory to begin" 
-              : "Try the editor with sample mod configurations"}
+            Select your SPT installation directory to begin editing configs
           </p>
 
           <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border max-w-md mx-auto">
@@ -116,32 +100,34 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              {isElectron() ? "Select Your SPT Folder" : "Launch Demo"}
-            </label>
+            <label className="text-sm font-medium text-foreground">Select Your SPT Folder</label>
 
             <Button
               onClick={handleSelectFolder}
-              disabled={isScanning}
+              disabled={isScanning || (!isElectron() && !browserSupported)}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-20 sm:h-24 text-base sm:text-lg gap-3"
             >
               {isScanning ? (
                 <>
                   <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-                  {isElectron() ? "Scanning folder..." : "Loading demo..."}
+                  Scanning folder...
                 </>
               ) : (
                 <>
                   <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
-                  {isElectron() ? "Select SPT Installation Folder" : "Load Demo Mods"}
+                  Select SPT Installation Folder
                 </>
               )}
             </Button>
 
+            {!isElectron() && !browserSupported && (
+              <p className="text-[10px] sm:text-xs text-destructive text-center">
+                Your browser doesn't support the File System Access API. Please use Chrome or Edge.
+              </p>
+            )}
+
             <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
-              {isElectron() 
-                ? "Click to browse and select your SPT installation directory"
-                : "Loads sample configurations for testing the editor in your browser"}
+              Click to browse and select your SPT installation directory
             </p>
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
@@ -201,18 +187,11 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder }: PathSelecto
                 NEW!
               </div>
             )}
-            {isElectron() ? (
-              <>
-                <p>• The app will scan for mods in: <span className="text-foreground font-mono">{path || "[path]"}/SPT/user/mods/</span> or <span className="text-foreground font-mono">{path || "[path]"}/user/mods/</span></p>
-                <p>• Only compatible JSON config files will be loaded</p>
-                <p>• You can change this path later in settings</p>
-              </>
-            ) : (
-              <>
-                <p>• This is a <span className="text-foreground font-semibold">browser demo</span> with sample mod configs</p>
-                <p>• Changes are saved to your browser's local storage</p>
-                <p>• For full functionality, use the <span className="text-foreground">Electron desktop app</span></p>
-              </>
+            <p>• The app will scan for mods in: <span className="text-foreground font-mono">{path || "[path]"}/SPT/user/mods/</span> or <span className="text-foreground font-mono">{path || "[path]"}/user/mods/</span></p>
+            <p>• Only compatible JSON config files will be loaded</p>
+            <p>• Changes are saved directly to your real files on disk</p>
+            {!isElectron() && (
+              <p>• <span className="text-foreground font-semibold">Browser mode:</span> Your browser will ask for permission to read/write the folder</p>
             )}
           </div>
         </div>

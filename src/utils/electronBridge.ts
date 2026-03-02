@@ -1,14 +1,24 @@
 /**
- * Browser-compatible bridge that provides localStorage-based fallbacks
- * when the Electron bridge is not available.
+ * Unified bridge: uses Electron bridge when available, otherwise
+ * uses the browser File System Access API for real file operations.
  */
+
+import {
+  pickDirectory,
+  readFileBrowser,
+  writeFileBrowser,
+  existsBrowser,
+  statBrowser,
+  getDirHandle,
+  readdirBrowser,
+  getRootHandle,
+} from "@/utils/browserFs";
 
 const isElectron = () => !!(window as any).electronBridge;
 const getBridge = () => (window as any).electronBridge;
 
-// In-memory virtual filesystem for browser demo mode
+// localStorage helpers for categories & history (no file system needed)
 const STORAGE_PREFIX = "vfs:";
-
 const vfs = {
   get: (path: string): string | null => {
     try { return localStorage.getItem(STORAGE_PREFIX + path); } catch { return null; }
@@ -35,38 +45,38 @@ const vfs = {
 
 export const selectFolder = async () => {
   if (isElectron()) return await getBridge().selectFolder();
-  // Browser mode: return a fake path
-  return { canceled: false, path: "/demo/SPT" };
+  // Use File System Access API
+  return await pickDirectory();
 };
 
-export const readdir = async (path: string) => {
+export const readdir = async (path: string): Promise<Array<{ name: string; isFile: boolean; isDirectory: boolean }>> => {
   if (isElectron()) return await getBridge().readdir(path);
-  // Return empty for browser
-  return [];
+  const dirHandle = await getDirHandle(path);
+  if (!dirHandle) return [];
+  return await readdirBrowser(dirHandle);
 };
 
 export const readFile = async (path: string): Promise<string> => {
   if (isElectron()) return await getBridge().readFile(path);
-  const content = vfs.get(path);
-  if (content !== null) return content;
-  return "{}";
+  return await readFileBrowser(path);
 };
 
 export const writeFile = async (path: string, content: any) => {
   if (isElectron()) return await getBridge().writeFile(path, content);
-  vfs.set(path, typeof content === "string" ? content : JSON.stringify(content));
+  await writeFileBrowser(path, typeof content === "string" ? content : JSON.stringify(content));
 };
 
 export const exists = async (path: string): Promise<boolean> => {
   if (isElectron()) return await getBridge().exists(path);
-  return vfs.get(path) !== null;
+  return await existsBrowser(path);
 };
 
 export const stat = async (path: string) => {
   if (isElectron()) return await getBridge().stat(path);
-  return { isFile: true, isDirectory: false };
+  return await statBrowser(path);
 };
 
+// Categories & history use localStorage (no real FS path for these)
 export const writeCategoryFile = async (content: string) => {
   if (isElectron()) return await getBridge().writeCategoryFile(content);
   vfs.set("__categories__", content);
@@ -109,6 +119,5 @@ export const clearHistoryBackups = async (modName: string, configFile: string) =
 
 export const saveFile = async (options: any) => {
   if (isElectron()) return await getBridge().saveFile(options);
-  // Browser fallback: trigger a download
   return { canceled: true, filePath: null };
 };

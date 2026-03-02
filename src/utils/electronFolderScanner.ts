@@ -8,7 +8,6 @@ import {
 import { ConfigValue } from "@/utils/configHelpers";
 import { Mod } from "@/components/ModList";
 import JSON5 from "json5";
-import { getDemoMods, initDemoFiles } from "@/utils/demoData";
 
 export interface ScannedFileInfo {
   name: string;
@@ -30,35 +29,17 @@ export interface ElectronScannedMod {
   folderPath: string;
 }
 
-const isElectron = () => !!(window as any).electronBridge;
-
 export async function scanFolder(folderPath: string): Promise<ScannedFileInfo[]> {
   try {
-    const folderExists = await exists(folderPath);
-    if (!folderExists) return [];
-
     const entries = await readdir(folderPath);
     if (!entries || !Array.isArray(entries)) return [];
 
-    const scanned = await Promise.all(
-      entries.map(async (entry) => {
-        const separator = folderPath.includes("\\") ? "\\" : "/";
-        const fullPath = folderPath + separator + entry.name;
-        try {
-          const info = await stat(fullPath);
-          return {
-            name: entry.name,
-            fullPath,
-            isDirectory: info.isDirectory,
-            isFile: info.isFile,
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    return scanned.filter((x): x is ScannedFileInfo => x !== null);
+    return entries.map((entry) => ({
+      name: entry.name,
+      fullPath: folderPath + "/" + entry.name,
+      isDirectory: entry.isDirectory,
+      isFile: entry.isFile,
+    }));
   } catch (error) {
     console.error(`❌ scanFolder() failed for: ${folderPath}`, error);
     return [];
@@ -66,27 +47,33 @@ export async function scanFolder(folderPath: string): Promise<ScannedFileInfo[]>
 }
 
 export async function scanSPTFolderElectron(sptPath: string): Promise<ElectronScannedMod[]> {
-  // Browser demo mode
-  if (!isElectron()) {
-    initDemoFiles();
-    return getDemoMods();
-  }
-
-  const separator = sptPath.includes("\\") ? "\\" : "/";
+  const separator = "/";
   
+  // Check standard SPT locations
   const possibleModPaths = [
     sptPath + separator + "SPT" + separator + "user" + separator + "mods",
     sptPath + separator + "user" + separator + "mods",
-    sptPath
+    sptPath // Fallback: maybe they selected the mods folder directly
   ];
 
   for (const modPath of possibleModPaths) {
-    if (await exists(modPath)) {
-      const mods = await scanFolder(modPath);
+    try {
+      const entries = await readdir(modPath);
+      if (!entries || entries.length === 0) continue;
+      
+      const mods = entries.map(e => ({
+        name: e.name,
+        fullPath: modPath + "/" + e.name,
+        isDirectory: e.isDirectory,
+        isFile: e.isFile,
+      }));
+      
       const validModFolders = mods.filter(m => m.isDirectory);
       if (validModFolders.length > 0) {
         return scanMods(validModFolders);
       }
+    } catch {
+      continue;
     }
   }
 
@@ -108,22 +95,19 @@ export async function scanModFolderElectron(
 ): Promise<ElectronScannedMod | null> {
   try {
     let packageJson: any = {};
-    const separator = modFolderPath.includes("\\") ? "\\" : "/";
-    const pkgPath = modFolderPath + separator + "package.json";
+    const pkgPath = modFolderPath + "/package.json";
 
-    if (await exists(pkgPath)) {
-      try {
-        const pkgContent = await readFile(pkgPath);
-        packageJson = JSON5.parse(pkgContent);
-      } catch {
-        console.warn(`⚠️ Invalid package.json in ${modFolderPath}`);
-      }
+    try {
+      const pkgContent = await readFile(pkgPath);
+      packageJson = JSON5.parse(pkgContent);
+    } catch {
+      // No package.json or invalid — that's fine
     }
 
-    const configs = await scanConfigFilesRecursiveElectron(modFolderPath, modFolderPath);
-    
+    const configs = await scanConfigFilesRecursive(modFolderPath, modFolderPath);
     configs.forEach((cfg, idx) => (cfg.index = idx));
-    const folderName = modFolderPath.split(/[/\\\\]/).pop()!;
+    
+    const folderName = modFolderPath.split("/").pop()!;
 
     const mod: Mod = {
       id: packageJson.name || folderName,
@@ -141,7 +125,7 @@ export async function scanModFolderElectron(
   }
 }
 
-async function scanConfigFilesRecursiveElectron(
+async function scanConfigFilesRecursive(
   currentPath: string,
   basePath: string
 ): Promise<ElectronScannedConfig[]> {
@@ -150,19 +134,19 @@ async function scanConfigFilesRecursiveElectron(
     const entries = await scanFolder(currentPath);
     for (const entry of entries) {
       if (entry.isDirectory) {
-        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".svn") continue;
-        const subConfigs = await scanConfigFilesRecursiveElectron(entry.fullPath, basePath);
+        if (["node_modules", ".git", ".svn", "node_modules"].includes(entry.name)) continue;
+        const subConfigs = await scanConfigFilesRecursive(entry.fullPath, basePath);
         configs.push(...subConfigs);
       } else if (entry.isFile && /\.(json|jsonc|json5|txt|cfg|conf|log)$/i.test(entry.name)) {
         try {
-          const relative = entry.fullPath.replace(basePath, "").replace(/^[/\\\\]/, "");
+          const relative = entry.fullPath.replace(basePath, "").replace(/^\//, "");
           
           let parsed = null;
           if (/\.json[c5]?$/i.test(entry.name)) {
             const rawText = await readFile(entry.fullPath);
             try {
               parsed = JSON5.parse(rawText);
-            } catch (e) {
+            } catch {
               parsed = {};
             }
           }
@@ -179,7 +163,7 @@ async function scanConfigFilesRecursiveElectron(
       }
     }
   } catch (error) {
-    console.error(`❌ scanConfigFilesRecursiveElectron failed in: ${currentPath}`, error);
+    console.error(`❌ scanConfigFilesRecursive failed in: ${currentPath}`, error);
   }
   return configs;
 }
@@ -190,8 +174,9 @@ export async function saveConfigToFileElectron(
   originalJson: any
 ): Promise<void> {
   try {
+    const { writeFile } = await import("@/utils/electronBridge");
+    
     if (values.length === 1 && values[0].key === "__RAW_JSON__" && values[0].type === "raw") {
-      const { writeFile } = await import("@/utils/electronBridge");
       await writeFile(filePath, values[0].value as string);
       return;
     }
@@ -206,7 +191,6 @@ export async function saveConfigToFileElectron(
       }
       current[keys[keys.length - 1]] = val.value;
     }
-    const { writeFile } = await import("@/utils/electronBridge");
     await writeFile(filePath, JSON.stringify(updatedJson, null, 2));
   } catch (error) {
     console.error("❌ Failed saving config:", error);
