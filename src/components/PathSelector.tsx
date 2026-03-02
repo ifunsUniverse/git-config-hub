@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, Upload, Loader2, RefreshCw } from "lucide-react";
+import { FolderOpen, Upload, Loader2, RefreshCw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { selectFolder } from "@/utils/electronBridge";
 import { tips } from "@/components/ui/tips";
-import { isFileSystemAccessSupported } from "@/utils/browserFs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +22,6 @@ interface PathSelectorProps {
   onLoadDemo?: () => void;
 }
 
-const isElectron = () => !!(window as any).electronBridge;
-
 export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }: PathSelectorProps) => {
   const [path, setPath] = useState("");
   const [isScanning, setIsScanning] = useState(false);
@@ -33,7 +30,6 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
   const [showNewLabel, setShowNewLabel] = useState(() => {
     return localStorage.getItem("hasSeenUpdateInfo") !== "true";
   });
-  const browserSupported = !isElectron() && isFileSystemAccessSupported();
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * tips.length);
@@ -43,8 +39,6 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
   const handleSelectFolder = async () => {
     try {
       setIsScanning(true);
-
-      const { selectFolder } = await import("@/utils/electronBridge");
       const result = await selectFolder();
 
       if (result.canceled || !result.path) {
@@ -55,6 +49,7 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
       setPath(result.path);
       localStorage.setItem("lastSPTFolder", result.path);
       toast.success("Folder selected", { description: "Scanning for mods..." });
+
       onFolderSelected(result.path);
     } catch (error: any) {
       console.error("Error selecting folder:", error);
@@ -90,9 +85,7 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">SPT Mod Config Editor</h1>
           </div>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Select your SPT installation directory to begin editing configs
-          </p>
+          <p className="text-sm sm:text-base text-muted-foreground">Select your SPT installation directory to begin</p>
 
           <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-border max-w-md mx-auto">
             <p className="text-[10px] sm:text-xs text-foreground">{tip}</p>
@@ -105,7 +98,7 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
 
             <Button
               onClick={handleSelectFolder}
-              disabled={isScanning || (!isElectron() && !browserSupported)}
+              disabled={isScanning}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-20 sm:h-24 text-base sm:text-lg gap-3"
             >
               {isScanning ? (
@@ -121,17 +114,11 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
               )}
             </Button>
 
-            {!isElectron() && !browserSupported && (
-              <p className="text-[10px] sm:text-xs text-destructive text-center">
-                Your browser doesn't support the File System Access API. Please use Chrome or Edge, or try the demo below.
-              </p>
-            )}
-
             <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
               Click to browse and select your SPT installation directory
             </p>
 
-            {!isElectron() && onLoadDemo && (
+            {onLoadDemo && (
               <Button
                 onClick={onLoadDemo}
                 variant="secondary"
@@ -142,27 +129,23 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
             )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
-              {isElectron() && (
-                <>
-                  <Button
-                    onClick={() => setShowLoadConfirm(true)}
-                    variant="outline"
-                    className="w-full h-12 sm:h-16 text-base sm:text-lg gap-3"
-                    disabled={!localStorage.getItem("lastSPTFolder")}
-                  >
-                    Load Last Folder
-                  </Button>
+              <Button
+                onClick={() => setShowLoadConfirm(true)}
+                variant="outline"
+                className="w-full h-12 sm:h-16 text-base sm:text-lg gap-3"
+                disabled={!localStorage.getItem("lastSPTFolder")}
+              >
+                Load Last Folder
+              </Button>
 
-                  <Button
-                    onClick={handleCheckUpdates}
-                    variant="ghost"
-                    className="w-full h-10 sm:h-12 gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
-                  >
-                    <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Check for Updates
-                  </Button>
-                </>
-              )}
+              <Button
+                onClick={handleCheckUpdates}
+                variant="ghost"
+                className="w-full h-10 sm:h-12 gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
+              >
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                Check for Updates
+              </Button>
 
               <AlertDialog open={showLoadConfirm} onOpenChange={setShowLoadConfirm}>
                 <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
@@ -200,10 +183,7 @@ export const PathSelector = ({ onFolderSelected, onLoadLastFolder, onLoadDemo }:
             )}
             <p>• The app will scan for mods in: <span className="text-foreground font-mono">{path || "[path]"}/SPT/user/mods/</span> or <span className="text-foreground font-mono">{path || "[path]"}/user/mods/</span></p>
             <p>• Only compatible JSON config files will be loaded</p>
-            <p>• Changes are saved directly to your real files on disk</p>
-            {!isElectron() && (
-              <p>• <span className="text-foreground font-semibold">Browser mode:</span> Your browser will ask for permission to read/write the folder</p>
-            )}
+            <p>• You can change this path later in settings</p>
           </div>
         </div>
       </Card>
